@@ -18,6 +18,7 @@ public class BankAccountController {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
     private SnsClient snsClient;
 
     public BankAccountController() {

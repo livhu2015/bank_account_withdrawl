@@ -5,7 +5,7 @@ By default, the ***account ID = 1*** is initialized (deposited) with a balance o
 Clients can request withdrawals from their or default accounts.
 
 ## 1. Architecture
-![](../bank_account_withdrawl.png)
+![](bank_account_withdrawl.png)
 *High level deployment architecture approach*
 
 The application is built using Spring Boot framework, which provides a robust foundation for Java applications. 

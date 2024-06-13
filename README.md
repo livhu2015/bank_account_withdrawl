@@ -16,7 +16,7 @@ Here's a breakdown of the architecture and key components.The application will u
 - **Mode**l: Defines entities like Account with attributes such as balance.
 - **Exception Handling**: Custom exceptions (AccountNotFoundException, InsufficientFundsException) manage error scenarios gracefully.
 
-## 1. AWS SNS Configuration
+## 2. AWS SNS Configuration
 Configure AWS SNS integration for publishing withdrawal events(notification via email/sms), 
 Ensure that your SNS Topic subscribes to SMS/Email notification.
 
@@ -28,14 +28,14 @@ aws.account-id=your_account_id
 aws.topic-name=bank_notification_topic_name
 `````
 These properties are used to dynamically construct the SNS topic ARN (arn:aws:sns:your_region:your_account_id:bank_notification_topic_name) needed for publishing events.
-## 2. Run the Application: 
+## 3. Run the Application: 
 Ensure the application is running locally or deployed on a server accessible via HTTP.
 open the Terminal
 `````
 mvn clean package
 mvn spring-boot:run
 `````
-## 3. Swagger UI
+## 4. Swagger UI - Testing
 Open a web browser and navigate to the following URL:
 
 http://localhost:8080/api/swagger-ui.html
@@ -45,7 +45,7 @@ http://localhost:8080/api/swagger-ui.html
 ### Explore Endpoints: 
 Swagger UI provides a user-friendly interface listing all available endpoints, request parameters, and response structures. You can interact with the API directly from this interface:
 
-## 4. Future Enhancements
+## 5. Future Enhancements
 1. **Security**: Implement authentication and authorization mechanisms.
 2. **Monitoring**: Integrate monitoring tools for performance and health checks.
 3. **Caching**: Introduce caching mechanisms to improve response times for read-heavy operations.

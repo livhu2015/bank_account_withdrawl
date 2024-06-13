@@ -1,17 +1,15 @@
 package com.sanlam.bank.account_demo.model;
 
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString
-public class WithdrawalEvent {
-    private BigDecimal amount;
-    private Long accountId;
-    private String status;
+public class WithdrawalResponse {
+    private Boolean isValid;
+    private List<BigDecimal> notes;
 }

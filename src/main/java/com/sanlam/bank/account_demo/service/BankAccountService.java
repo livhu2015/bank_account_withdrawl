@@ -1,64 +1,136 @@
 package com.sanlam.bank.account_demo.service;
 
-import java.math.BigDecimal;
+import com.sanlam.bank.account_demo.dto.NotificationRequest;
 import com.sanlam.bank.account_demo.dto.WithdrawalRequest;
-import com.sanlam.bank.account_demo.model.WithdrawalEvent;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import software.amazon.awssdk.services.sns.SnsClient;
-import software.amazon.awssdk.services.sns.model.PublishRequest;
-import software.amazon.awssdk.services.sns.model.PublishResponse;
+import com.sanlam.bank.account_demo.exception.AccountNotFoundException;
+import com.sanlam.bank.account_demo.exception.InsufficientFundsException;
+import com.sanlam.bank.account_demo.exception.InvalidAmountException;
+import com.sanlam.bank.account_demo.exception.SnsPublishException;
+import com.sanlam.bank.account_demo.model.Account;
+import com.sanlam.bank.account_demo.model.WithdrawalResponse;
+import com.sanlam.bank.account_demo.repository.AccountRepository;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
 
 @Service
 public class BankAccountService {
-
     private static final Logger logger = LoggerFactory.getLogger(BankAccountService.class);
 
     @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private AccountRepository accountRepository;
 
     @Autowired
-    private SnsClient snsClient;
-
-    private String snsTopicArn = "arn:aws:sns:YOUR_REGION:YOUR_ACCOUNT_ID:YOUR_TOPIC_NAME";
+    private BankNotificationService bankNotificationService;
 
     @Transactional
-    public String withdraw(WithdrawalRequest request) {
+    public WithdrawalResponse withdraw(@Valid WithdrawalRequest request) {
         Long accountId = request.getAccountId();
         BigDecimal amount = request.getAmount();
 
-        String sqlSelect = "SELECT balance FROM accounts WHERE id = ?";
-        BigDecimal currentBalance = jdbcTemplate.queryForObject(sqlSelect, new Object[]{accountId}, BigDecimal.class);
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            logger.warn("Invalid withdrawal amount {} for account {}", amount, accountId);
+            throw new InvalidAmountException(accountId, amount, "Withdrawal amount must be greater than 0");
+        }
 
-        if (currentBalance != null && currentBalance.compareTo(amount) >= 0) {
-            String sqlUpdate = "UPDATE accounts SET balance = balance - ? WHERE id = ?";
-            int rowsAffected = jdbcTemplate.update(sqlUpdate, amount, accountId);
+        if (amount.remainder(BigDecimal.TEN).compareTo(BigDecimal.ZERO) != 0) {
+            logger.warn("Invalid withdrawal amount {} for account {}. Amount must be a multiple of 10", amount, accountId);
+            throw new InvalidAmountException(accountId, amount, "Withdrawal amount must be a multiple of 10");
+        }
 
-            if (rowsAffected > 0) {
-                publishWithdrawalEvent(amount, accountId, "SUCCESSFUL");
-                return "Withdrawal successful";
+        logger.info("Withdrawal requested for account {} with amount {}", accountId, amount);
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new AccountNotFoundException(accountId));
+
+        NotificationRequest notificationRequest = new NotificationRequest();
+        notificationRequest.setAccountId(accountId);
+        notificationRequest.setAmount(amount);
+
+        try {
+            if (amount.compareTo(BigDecimal.ZERO) > 0 && account.getBalance().compareTo(amount) >= 0) {
+
+                account.setBalance(account.getBalance().subtract(amount));
+                Account savedAccount = accountRepository.save(account);
+                logger.info("Updated account balance for account {}: {}", accountId, savedAccount.getBalance());
+
+                List<BigDecimal> notes = getNotes(amount);
+
+                BigDecimal sumOfNotes = notes.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+                boolean isValid = sumOfNotes.compareTo(amount) == 0;
+
+                if (isValid) {
+                    notificationRequest.setStatus("SUCCESSFUL");
+                    sendNotification(notificationRequest);
+                }
+
+                return new WithdrawalResponse(isValid, notes);
             } else {
-                return "Withdrawal failed";
+                notificationRequest.setStatus("Insufficient");
+                sendNotification(notificationRequest);
+
+                logger.warn("Insufficient funds for withdrawal for account {} with amount {}", accountId, amount);
+                logger.warn("Available balance:  {}", account.getBalance());
+                throw new InsufficientFundsException(accountId, amount);
             }
-        } else {
-            return "Insufficient funds for withdrawal";
+        } catch (Exception e) {
+            logger.error("Failed to process withdrawal for account {}", accountId);
+            throw e;
+        }
+    }
+    @Transactional
+    public Account deposit(Long accountId, BigDecimal amount) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new AccountNotFoundException(accountId));
+
+        BigDecimal newBalance = account.getBalance().add(amount);
+        account.setBalance(newBalance);
+
+        return accountRepository.save(account);
+    }
+
+    public BigDecimal checkBalance(Long accountId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new AccountNotFoundException(accountId));
+        return account.getBalance();
+    }
+
+    public void sendNotification(@NotNull NotificationRequest notificationRequest) {
+        Long accountId = notificationRequest.getAccountId();
+        BigDecimal amount = notificationRequest.getAmount();
+        try {
+            bankNotificationService.publishWithdrawalEvent(accountId, amount, notificationRequest.getStatus());
+            logger.info("Withdrawal event published successfully for account {} with amount {}", accountId, amount);
+        } catch (SnsPublishException e) {
+            logger.error("SNS publish failed for account {}. Rolling back transaction.", accountId, e);
+            throw new RuntimeException("Withdrawal failed due to SNS publish error", e);
         }
     }
 
-    private void publishWithdrawalEvent(BigDecimal amount, Long accountId, String status) {
-        WithdrawalEvent event = new WithdrawalEvent(amount, accountId, status);
-        String eventJson = event.toJson();
+    private List<BigDecimal> getNotes(BigDecimal amount) {
+        List<BigDecimal> notes = new ArrayList<>();
+        BigDecimal[] denominations = {
+                BigDecimal.valueOf(200),
+                BigDecimal.valueOf(100),
+                BigDecimal.valueOf(50),
+                BigDecimal.valueOf(20),
+                BigDecimal.valueOf(10)
+        };
 
-        PublishRequest publishRequest = PublishRequest.builder()
-                .message(eventJson)
-                .topicArn(snsTopicArn)
-                .build();
-
-        PublishResponse publishResponse = snsClient.publish(publishRequest);
-        logger.info("Published withdrawal event: {}", publishResponse.messageId());
+        for (BigDecimal denomination : denominations) {
+            while (amount.compareTo(denomination) >= 0) {
+                notes.add(denomination);
+                amount = amount.subtract(denomination);
+            }
+        }
+        return notes;
     }
 }

@@ -1,0 +1,5 @@
+CREATE TABLE account (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    balance DECIMAL(19, 2) NOT NULL CHECK (balance >= 0),
+    type VARCHAR(255) NOT NULL
+);

@@ -1,25 +1,17 @@
 package com.sanlam.bank.account_demo.dto;
 
-import java.io.Serializable;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+
 import java.math.BigDecimal;
 
-public class WithdrawalRequest implements Serializable {
-
+@Data
+public class WithdrawalRequest {
+    @NotNull(message = "Account ID cannot be null")
     private Long accountId;
+
+    @NotNull(message = "Amount cannot be null")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Withdrawal amount must be greater than 0")
     private BigDecimal amount;
-    public Long getAccountId() {
-        return accountId;
-    }
-
-    public void setAccountId(Long accountId) {
-        this.accountId = accountId;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
 }

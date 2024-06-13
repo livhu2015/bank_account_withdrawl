@@ -6,10 +6,10 @@ Clients can request withdrawals from their or default accounts.
 
 ## 1. Architecture
 ![](bank_account_withdrawl.png)
-*High level deployment architecture approach*
+__Figure 1__: *High Hevel Deployment Architecture*
 
 The application is built using Spring Boot framework, which provides a robust foundation for Java applications. 
-Here's a breakdown of the architecture and key components.The application will use  figure 1. above (high level architecture deployment approach).
+Here's a breakdown of the architecture and key components.The application will use  **Figure 1.** above (high level architecture deployment approach).
 - **Controller**: Handles incoming HTTP requests, delegates to the service layer, and manages responses.
 - **Service**: Contains business logic, including withdrawal processing, validation, and interaction with the repository.
 - **Repository**: Interface for data access operations, interacting with the in-memory database.
@@ -45,7 +45,7 @@ http://localhost:8080/api/swagger-ui.html
 ### Explore Endpoints: 
 Swagger UI provides a user-friendly interface listing all available endpoints, request parameters, and response structures. You can interact with the API directly from this interface:
 
-## 5. Future Enhancements
+## 5. Future Enhancements 
 1. **Security**: Implement authentication and authorization mechanisms.
 2. **Monitoring**: Integrate monitoring tools for performance and health checks.
 3. **Caching**: Introduce caching mechanisms to improve response times for read-heavy operations.

@@ -3,6 +3,19 @@
 This application simulates a bank account withdrawal service using an in-memory database.
 By default, the ***account ID = 1*** is initialized (deposited) with a balance of R100.
 Clients can request withdrawals from their or default accounts.
+
+## 1. Architecture
+![](../bank_account_withdrawl.png)
+*High level deployment architecture approach*
+
+The application is built using Spring Boot framework, which provides a robust foundation for Java applications. 
+Here's a breakdown of the architecture and key components.The application will use  figure 1. above (high level architecture deployment approach).
+- **Controller**: Handles incoming HTTP requests, delegates to the service layer, and manages responses.
+- **Service**: Contains business logic, including withdrawal processing, validation, and interaction with the repository.
+- **Repository**: Interface for data access operations, interacting with the in-memory database.
+- **Mode**l: Defines entities like Account with attributes such as balance.
+- **Exception Handling**: Custom exceptions (AccountNotFoundException, InsufficientFundsException) manage error scenarios gracefully.
+
 ## 1. AWS SNS Configuration
 Configure AWS SNS integration for publishing withdrawal events(notification via email/sms), 
 Ensure that your SNS Topic subscribes to SMS/Email notification.
